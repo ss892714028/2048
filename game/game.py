@@ -6,9 +6,10 @@ class Game:
     def __init__(self):
         self.board = np.zeros((4, 4), dtype=np.int)
         self.game_over = False
+        self.new_board = np.zeros((4, 4), dtype=np.int)
 
     def fill_cell(self):
-        i,j = (self.board == 0).nonzero()
+        i, j = (self.board == 0).nonzero()
         if i.size != 0:
             rnd = randint(0, i.size - 1)
             self.board[i[rnd], j[rnd]] = 2 * ((random() > .9) + 1)
@@ -42,21 +43,24 @@ class Game:
         return np.rot90(new_board, -direction)
 
     def is_game_over(self):
-        if self.game_over:
-            print('game over')
-
-    def main_loop(self,board, direction):
-        new_board = self.move(direction)
-        moved = False
-        if (new_board == board).all():
-            # move is invalid
+        temp = []
+        for i in range(3):
+            temp.append((self.board == self.move(i)).all())
+        if False not in temp:
             self.game_over = True
+        if self.game_over:
+            print('game_over')
+
+    def main_loop(self, direction):
+        self.new_board = self.move(direction)
+        moved = False
+        if (self.new_board == self.board).all():
+
+            # move is invalid
+            moved = False
         else:
             moved = True
+            self.board = self.new_board
             self.fill_cell()
-
-        return (moved, new_board)
-
-if __name__ == '__main__':
-    game = Game()
-    print(game.board)
+        self.is_game_over()
+        return (self.board)
