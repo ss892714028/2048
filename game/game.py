@@ -7,6 +7,7 @@ class Game:
         self.board = np.zeros((4, 4), dtype=np.int)
         self.game_over = False
         self.new_board = np.zeros((4, 4), dtype=np.int)
+        self.step = 0
 
     def fill_cell(self):
         i, j = (self.board == 0).nonzero()
@@ -60,6 +61,7 @@ class Game:
             moved = False
         else:
             moved = True
+            self.step += 1
             self.board = self.new_board
             self.fill_cell()
         self.is_game_over()
