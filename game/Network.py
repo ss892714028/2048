@@ -3,11 +3,11 @@ from keras.layers import Dense, Layer
 
 
 class Network:
-    def __init__(self, action_space, batch_size, dropout, input_dim):
+    def __init__(self, action_space, batch_size, input_dim):
         self.action_space = action_space
         self.input_dim = input_dim
         self.batch_size = batch_size
-        self.dropout = dropout
+
 
         self.model = keras.models.Sequential()
         self.model.add(Dense(24, input_dim=self.input_dim, activation='relu'))
