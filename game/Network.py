@@ -1,5 +1,5 @@
 import keras
-from keras.layers import Dense, Layer
+from keras.layers import Dense, Layer, Conv2D
 
 
 class Network:
@@ -7,7 +7,6 @@ class Network:
         self.action_space = action_space
         self.input_dim = input_dim
         self.batch_size = batch_size
-
 
         self.model = keras.models.Sequential()
         self.model.add(Dense(24, input_dim=self.input_dim, activation='relu'))

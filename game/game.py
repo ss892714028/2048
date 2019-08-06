@@ -11,6 +11,7 @@ class Game:
         self.score = 0
         self.empty = 0
         self.joinable = []
+        self.moved = False
 
     def fill_cell(self):
         i, j = (self.board == 0).nonzero()
@@ -62,13 +63,14 @@ class Game:
     def main_loop(self, direction):
         self.new_board = self.move(direction)[0]
         score = self.move(direction)[1]
-        moved = False
+
         if (self.new_board == self.board).all():
 
             # move is invalid
-            moved = False
+            self.moved = False
+            self.count()
         else:
-            moved = True
+            self.moved = True
             self.step += 1
             self.board = self.new_board
             self.fill_cell()
