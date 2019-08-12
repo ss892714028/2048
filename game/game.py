@@ -4,7 +4,7 @@ import sys
 
 class Game:
     def __init__(self):
-        self.board = np.zeros((4, 4), dtype=np.int)
+        self.board = np.zeros((4, 4), dtype=np.float)
         self.game_over = False
         self.new_board = np.zeros((4, 4), dtype=np.int)
         self.step = 0
