@@ -7,11 +7,13 @@ from keras.layers import Dense, Layer, Conv2D, MaxPool2D,Flatten,Dropout,BatchNo
 import keras
 from keras.optimizers import SGD,Adam
 from sklearn.preprocessing import StandardScaler
+import keras.backend as K
 class DQNAgent:
 
-    def __init__(self, state_size=[1,4,4,1], epsilon = 1, gamma = 0.8, epsilon_decay = 0.998,
-                 epsilon_min = 0.01, learning_rate=0.00025, action_space=4):
+    def __init__(self, state_size=[1,4,4,1], epsilon = 1, gamma = 0.8, epsilon_decay = 0.99,
+                 epsilon_min = 0.01, learning_rate=0.0002, action_space=4,c = 100):
         self.epsilon = epsilon
+        self.action = 0
         self.state_size = state_size
         self.gamma = gamma
         self.epsilon_decay = epsilon_decay
@@ -20,8 +22,9 @@ class DQNAgent:
         self.action_space = action_space
         self.target = self.build()
         self.model = self.build()
-
+        self.c = c
         self.memory = deque(maxlen=5000)
+
 
     def build(self):
         model = keras.models.Sequential()
@@ -45,8 +48,8 @@ class DQNAgent:
         # Output layer
         model.add(Dense(self.action_space))
 
-        model.compile(loss='mean_squared_error',
-                      optimizer='RMSprop',
+        model.compile(loss=self.loss,
+                      optimizer=Adam(),
                       metrics=['accuracy'])
         print(model.summary())
         return model
@@ -58,7 +61,7 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_space)
         state = self.scale(state).reshape(self.state_size)
-        act_values = self.target.predict(state)
+        act_values = self.model.predict(state)
 
         return np.argmax(act_values[0])
 
@@ -77,22 +80,25 @@ class DQNAgent:
         accuracy = []
         for state, action, reward, next_state, game_over in mini_batch:
             target = reward
-
+            self.action = action
             if not game_over:
 
                 target = reward + self.gamma * np.amax(self.target.predict(next_state)[0])
-
-            target_f = self.target.predict(state)
-            target_f[0][action] = target
-
-            hist = self.model.fit(state, target_f, epochs=1, verbose=0)
+            y = self.model.predict(state)[0]
+            y[action] =target
+            y = y.reshape(1,-1)
+            hist = self.model.fit(state, y, epochs=1, verbose=0)
             loss.append(hist.history['loss'])
             accuracy.append(hist.history['acc'])
 
             if self.epsilon > self.epsilon_min:
-               self.epsilon *= self.epsilon_decay
+                self.epsilon *= self.epsilon_decay
         print('avg training loss {}:'.format(np.array(loss).mean()))
         print('training accuracy {}:'.format(np.array(accuracy).mean()))
+
+    def loss(self, y_true, y_pred):
+        return K.square(y_pred[self.action] - y_true[self.action])
+
 
 
 if __name__ == "__main__":
@@ -123,14 +129,13 @@ if __name__ == "__main__":
             else:
                 r_position = -1
 
-
             reward = g.empty / 4 + (max(g.joinable))/2 + r_position
             if not g.moved:
                 stuck_counter+=1
-                reward -= 1
-
+                reward -= -5
             else:
                 reward += 1
+
             if stuck_counter>=2:
                 g.main_loop(random.randint(0,3))
                 stuck+=1
@@ -148,24 +153,32 @@ if __name__ == "__main__":
                 break
         stuck_each_epoch.append(stuck)
         score.append(g.score)
-        agent.experience_replay(32)
-        if i%300 == 299:
+        agent.experience_replay(64)
+
+        if i%agent.c == agent.c-1:
             agent.target.set_weights(agent.model.get_weights())
             s.append(np.array(score).mean())
             print(s)
+            game = []
+            for j in range(50):
+                print(j)
+                g = Game()
+                g.fill_cell()
+                state = g.board
+                while not g.game_over:
+                    act = agent.act(state)
+                    g.main_loop(act)
+
+                    if not g.moved:
+                        for index,value in enumerate(sorted(
+                                agent.model.predict(agent.scale(state).reshape(agent.state_size))[0])):
+                            g.main_loop(index)
+                            if g.moved:
+                                break
+                    state = g.board
+                game.append(g.score)
+
+            print(np.array(game).mean())
             score = []
 
-    game = []
 
-    for j in range(50):
-        print(j)
-        g = Game()
-        g.fill_cell()
-        state = g.board
-        while not g.game_over:
-            act = agent.act(state)
-            g.main_loop(act)
-            state = g.board
-        game.append(g.score)
-
-    print(np.array(game).mean())
