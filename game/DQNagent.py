@@ -1,16 +1,14 @@
 import numpy as np
-from Network import Network
 from collections import deque
 from game import Game
 import random
 from keras.layers import Dense, Layer, Conv2D, MaxPool2D,Flatten,Dropout,BatchNormalization, Dropout
 import keras
 from keras.optimizers import SGD,Adam
-from sklearn.preprocessing import StandardScaler
 import keras.backend as K
 class DQNAgent:
 
-    def __init__(self, state_size=[1,4,4,1], epsilon = 1, gamma = 0.8, epsilon_decay = 0.99,
+    def __init__(self, state_size=[1,4,4,1], epsilon = 0, gamma = 0.8, epsilon_decay = 0,
                  epsilon_min = 0.01, learning_rate=0.0002, action_space=4,c = 100):
         self.epsilon = epsilon
         self.action = 0
@@ -125,21 +123,18 @@ if __name__ == "__main__":
             max_position = np.argmax(next_state)
 
             if max_position == np.array([0,3,12,15]).any():
-                r_position = 1
+                r_position = 0
             else:
                 r_position = -1
-
             reward = g.empty / 4 + (max(g.joinable))/2 + r_position
             if not g.moved:
-                stuck_counter+=1
-                reward -= -5
-            else:
-                reward += 1
+                for index, value in enumerate(sorted(
+                        agent.model.predict(agent.scale(state).reshape(agent.state_size))[0])):
+                    g.main_loop(index)
+                    if g.moved:
+                        break
 
-            if stuck_counter>=2:
-                g.main_loop(random.randint(0,3))
-                stuck+=1
-                stuck_counter = 0
+
             game_over = g.game_over
 
             state = agent.scale(state).reshape(agent.state_size)

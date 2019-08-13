@@ -92,21 +92,13 @@ class Game:
 
 
 if __name__ == '__main__':
-    game = Game()
-    game.fill_cell()
-    print(game.board)
-
-    while not game.game_over:
-        while True:
-            try:
-                move = int(input('select move:'))
-                game.main_loop(move)
-                break
-
-            except:
-                print('move not identified')
-                continue
-        print(game.board)
-        print('score: {}'.format(game.score))
-        print('number of empty cell: {}'.format(game.empty))
-        print('potential joinable cells: {}'.format(game.joinable))
+    score = []
+    for i in range(5000):
+        g = Game()
+        g.fill_cell()
+        while not g.game_over:
+            action = np.random.randint(0,4)
+            g.main_loop(action)
+        score.append(g.score)
+        print(g.score)
+    print(np.array(score).mean())
