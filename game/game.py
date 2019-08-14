@@ -12,6 +12,7 @@ class Game:
         self.empty = 0
         self.joinable = []
         self.moved = False
+        self.joined_cells = 0
 
     def fill_cell(self):
         i, j = (self.board == 0).nonzero()
@@ -71,6 +72,7 @@ class Game:
             self.count()
         else:
             self.moved = True
+            self.joined_cells = list(self.new_board.flatten()).count(0) - list(self.board.flatten()).count(0)
             self.step += 1
             self.board = self.new_board
             self.fill_cell()
@@ -92,13 +94,22 @@ class Game:
 
 
 if __name__ == '__main__':
-    score = []
-    for i in range(5000):
-        g = Game()
-        g.fill_cell()
-        while not g.game_over:
-            action = np.random.randint(0,4)
-            g.main_loop(action)
-        score.append(g.score)
-        print(g.score)
-    print(np.array(score).mean())
+    game = Game()
+    game.fill_cell()
+    print(game.board)
+
+    while not game.game_over:
+        while True:
+            try:
+                move = int(input('select move:'))
+                game.main_loop(move)
+                break
+
+            except:
+                print('move not identified')
+                continue
+        print(game.board)
+        print('score: {}'.format(game.score))
+        print('number of empty cell: {}'.format(game.empty))
+        print('potential joinable cells: {}'.format(game.joinable))
+        print('joined cells: {}'.format(game.joined_cells))

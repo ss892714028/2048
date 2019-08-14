@@ -6,10 +6,11 @@ from keras.layers import Dense, Layer, Conv2D, MaxPool2D,Flatten,Dropout,BatchNo
 import keras
 from keras.optimizers import SGD,Adam
 import keras.backend as K
+import math
 class DQNAgent:
 
-    def __init__(self, state_size=[1,4,4,1], epsilon = 0, gamma = 0.9, epsilon_decay = 0,
-                 epsilon_min = 0.01, learning_rate=0.0002, action_space=4,c = 100):
+    def __init__(self, state_size=[1,4,4,1], epsilon = 1, gamma = 0.9, epsilon_decay = 0.999,
+                 epsilon_min = 0, learning_rate=0.0001, action_space=4, c=20):
         self.epsilon = epsilon
         self.action = 0
         self.state_size = state_size
@@ -21,20 +22,23 @@ class DQNAgent:
         self.target = self.build()
         self.model = self.build()
         self.c = c
-        self.memory = deque(maxlen=5000)
+        self.memory = deque(maxlen=20000)
 
 
     def build(self):
         model = keras.models.Sequential()
 
-        model.add(Conv2D(256, [2,2],strides=1,
+        model.add(Conv2D(256, [3,3],strides=1,
                               padding='valid',
                               activation='relu',
                               input_shape=[4,4,1],
                               data_format='channels_last'))
 
         # Third convolutional layer
-        model.add(Conv2D(128,[2,2], strides=1,
+        model.add(Conv2D(256,[2,2], strides=1,
+                              padding='valid',
+                              activation='relu'))
+        model.add(Conv2D(512,[1,1], strides=1,
                               padding='valid',
                               activation='relu'))
         # Flatten the convolution output
@@ -42,12 +46,12 @@ class DQNAgent:
 
         # First dense layer
         model.add(Dense(512, activation='relu'))
-        model.add(Dense(128, activation='relu'))
+        model.add(Dense(256, activation='relu'))
         # Output layer
         model.add(Dense(self.action_space))
 
         model.compile(loss=self.loss,
-                      optimizer='RMSprop',
+                      optimizer=Adam(),
                       metrics=['accuracy'])
         print(model.summary())
         return model
@@ -103,17 +107,19 @@ class DQNAgent:
 
 
 if __name__ == "__main__":
-    episodes = 10000
+    episodes = 100000
     agent = DQNAgent()
     stuck_each_epoch = []
     s = []
     score = []
+    Q_value = []
     for i in range(episodes):
         g = Game()
         g.fill_cell()
         state = g.board
         stuck_counter = 0
         stuck = 0
+        r = []
 
         while True:
             action = agent.act(state)
@@ -141,26 +147,33 @@ if __name__ == "__main__":
                 r_position = 1
             else:
                 r_position = 0
-            reward = g.empty / 4 + (max(g.joinable)) / 2 + r_position
-            game_over = g.game_over
 
+            reward = g.empty / 4 + (max(g.joinable))/2 + g.joined_cells*2 + r_position
+            if reward !=0:
+                reward = math.log(reward, 2)
+            game_over = g.game_over
+            r.append(reward)
             state = agent.scale(state).reshape(agent.state_size)
             next_state = agent.scale(next_state).reshape(agent.state_size)
             agent.store_memory(state, action, reward, next_state, game_over)
             state = next_state
+            Q = np.array([value * (0.99 ** index) for index, value in enumerate(r)]).sum()
             if game_over:
-                print("episode: {}/{}, score: {}, max_cell: {}"
-                      .format(i, episodes, g.score, np.max(g.board)))
+                print("episode: {}/{}, score: {}, max_cell: {}, Q: {}"
+                      .format(i, episodes, g.score, np.max(g.board), Q))
                 break
+
+        Q_value.append(Q)
         stuck_each_epoch.append(stuck)
         score.append(g.score)
-        agent.experience_replay(64)
+        agent.experience_replay(32)
 
         if i%agent.c == agent.c-1:
             # agent.target.set_weights(agent.model.get_weights())
             agent.target = keras.models.clone_model(agent.model)
             s.append(np.array(score).mean())
-            print(s)
+            print(np.array(s))
+
             # game = []
             # for j in range(50):
             #     print(j)
