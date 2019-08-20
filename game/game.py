@@ -1,20 +1,25 @@
 from random import randint, random
 import numpy as np
-
+import sys
 
 class Game:
     def __init__(self):
-        self.board = np.zeros((4, 4), dtype=np.int)
+        self.board = np.zeros((4, 4), dtype=np.float)
         self.game_over = False
         self.new_board = np.zeros((4, 4), dtype=np.int)
         self.step = 0
         self.score = 0
+        self.empty = 0
+        self.joinable = []
+        self.moved = False
+        self.joined_cells = 0
 
     def fill_cell(self):
         i, j = (self.board == 0).nonzero()
         if i.size != 0:
             rnd = randint(0, i.size - 1)
             self.board[i[rnd], j[rnd]] = 2 * ((random() > .9) + 1)
+            self.empty = list(self.board.flatten()).count(0)
 
     def move_left(self, col):
         score = 0
@@ -41,6 +46,8 @@ class Game:
 
     def move(self, direction):
         # 0: left, 1: up, 2: right, 3: down
+        if direction not in [0,1,2,3]:
+            sys.exit("move not identified")
         rotated_board = np.rot90(self.board, direction)
         cols = [rotated_board[i, :] for i in range(4)]
         new_board = np.array([self.move_left(col)[0] for col in cols])
@@ -49,27 +56,60 @@ class Game:
 
     def is_game_over(self):
         temp = []
-        for i in range(3):
+        for i in range(4):
             temp.append((self.board == self.move(i)[0]).all())
         if False not in temp:
             self.game_over = True
 
-    #         if self.game_over:
-    #             print('game_over')
-
     def main_loop(self, direction):
         self.new_board = self.move(direction)[0]
         score = self.move(direction)[1]
-        moved = False
+
         if (self.new_board == self.board).all():
 
             # move is invalid
-            moved = False
+            self.moved = False
+            self.count()
         else:
-            moved = True
+            self.moved = True
+            self.joined_cells = list(self.new_board.flatten()).count(0) - list(self.board.flatten()).count(0)
             self.step += 1
             self.board = self.new_board
             self.fill_cell()
+            self.count()
             self.score += score
-        self.is_game_over()
+        if 0 not in self.board:
+            self.is_game_over()
         return self.board, self.score
+
+    def count(self):
+
+        join = []
+
+        for i in range(4):
+            moved_m = self.move(i)[0]
+            join.append(list(moved_m.flatten()).count(0)-self.empty)
+
+        self.joinable = join
+
+
+if __name__ == '__main__':
+    game = Game()
+    game.fill_cell()
+    print(game.board)
+
+    while not game.game_over:
+        while True:
+            try:
+                move = int(input('select move:'))
+                game.main_loop(move)
+                break
+
+            except:
+                print('move not identified')
+                continue
+        print(game.board)
+        print('score: {}'.format(game.score))
+        print('number of empty cell: {}'.format(game.empty))
+        print('potential joinable cells: {}'.format(game.joinable))
+        print('joined cells: {}'.format(game.joined_cells))
