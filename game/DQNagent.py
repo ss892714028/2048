@@ -4,13 +4,13 @@ from game import Game
 import random
 from keras.layers import Dense, Layer, Conv2D, MaxPool2D,Flatten,Dropout,BatchNormalization, Dropout
 import keras
-from keras.optimizers import SGD,Adam
+from keras.optimizers import SGD,Adam,RMSprop
 import keras.backend as K
 import math
 class DQNAgent:
 
-    def __init__(self, state_size=[1,4,4,1], epsilon = 1, gamma = 0.9, epsilon_decay = 0.999,
-                 epsilon_min = 0, learning_rate=0.0001, action_space=4, c=20):
+    def __init__(self, state_size=[1,4,4,1], epsilon = 0, gamma = 0.8, epsilon_decay = 0,
+                 epsilon_min = 0, learning_rate=0.0001, action_space=4, c=100):
         self.epsilon = epsilon
         self.action = 0
         self.state_size = state_size
@@ -28,7 +28,7 @@ class DQNAgent:
     def build(self):
         model = keras.models.Sequential()
 
-        model.add(Conv2D(256, [3,3],strides=1,
+        model.add(Conv2D(128, [2,2],strides=1,
                               padding='valid',
                               activation='relu',
                               input_shape=[4,4,1],
@@ -38,7 +38,7 @@ class DQNAgent:
         model.add(Conv2D(256,[2,2], strides=1,
                               padding='valid',
                               activation='relu'))
-        model.add(Conv2D(512,[1,1], strides=1,
+        model.add(Conv2D(256,[2,2], strides=1,
                               padding='valid',
                               activation='relu'))
         # Flatten the convolution output
@@ -51,7 +51,7 @@ class DQNAgent:
         model.add(Dense(self.action_space))
 
         model.compile(loss=self.loss,
-                      optimizer=Adam(),
+                      optimizer=RMSprop(lr=self.learning_rate),
                       metrics=['accuracy'])
         print(model.summary())
         return model
@@ -143,14 +143,34 @@ if __name__ == "__main__":
             next_state = g.board
             max_position = np.argmax(next_state)
 
-            if max_position == np.array([0, 3, 12, 15]).any():
-                r_position = 1
+            result = np.where(g.board == np.max(next_state))
+            listOfCoordinates = np.array(list(zip(result[0], result[1])))
+            temp = np.array([list(i) in [[0,0],[0,3],[3,0],[3,3]] for i in listOfCoordinates])
+            if temp.any():
+                r_position = 10
             else:
                 r_position = 0
 
-            reward = g.empty / 4 + (max(g.joinable))/2 + g.joined_cells*2 + r_position
-            if reward !=0:
-                reward = math.log(reward, 2)
+
+            # if max_position == np.array([0,3,12,15]).any():
+            #     r_position = 10
+            # else:
+            #     r_position = 0
+            empty = g.empty
+            joinable = g.joinable
+            joined_cells = g.joined_cells
+
+            if joined_cells == 0:
+                joined_cells = -1
+            if empty == 0:
+                empty = -5
+            if joined_cells == 0:
+                joined_cells = -2
+            if joinable == 0 and joined_cells <= 1:
+                joinable = -3
+
+            reward = r_position + joined_cells + empty/3 + max(joinable)
+
             game_over = g.game_over
             r.append(reward)
             state = agent.scale(state).reshape(agent.state_size)
@@ -161,12 +181,13 @@ if __name__ == "__main__":
             if game_over:
                 print("episode: {}/{}, score: {}, max_cell: {}, Q: {}"
                       .format(i, episodes, g.score, np.max(g.board), Q))
+                print(g.board)
                 break
 
         Q_value.append(Q)
         stuck_each_epoch.append(stuck)
         score.append(g.score)
-        agent.experience_replay(32)
+        agent.experience_replay(128)
 
         if i%agent.c == agent.c-1:
             # agent.target.set_weights(agent.model.get_weights())
