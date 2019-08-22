@@ -6,7 +6,8 @@ from keras.layers import Dense, Layer, Conv2D, MaxPool2D,Flatten,Dropout,BatchNo
 import keras
 from keras.optimizers import SGD,Adam,RMSprop
 import keras.backend as K
-import math
+
+
 class DQNAgent:
 
     def __init__(self, state_size=[1,4,4,1], epsilon = 0, gamma = 0.8, epsilon_decay = 0,
@@ -62,7 +63,7 @@ class DQNAgent:
     def act(self, state):
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_space)
-        state = self.scale(state).reshape(self.state_size)
+
         act_values = self.model.predict(state)
 
         return np.argmax(act_values[0])
@@ -105,79 +106,84 @@ class DQNAgent:
     def soft_acc(self, y_true, y_pred):
         return K.mean(K.equal(K.round(y_true), K.round(y_pred)))
 
+    @staticmethod
+    def calculate_reward(next_state, joined_cells, empty, joinable):
+        result = np.where(next_state == np.max(next_state))
+        listOfCoordinates = np.array(list(zip(result[0], result[1])))
+        temp = np.array([list(i) in [[0, 0], [0, 3], [3, 0], [3, 3]] for i in listOfCoordinates])
+        if temp.any():
+            r_position = 10
+        else:
+            r_position = 0
+
+        if joined_cells == 0:
+            joined_cells = -1
+        if empty == 0:
+            empty = -5
+        if joined_cells == 0:
+            joined_cells = -2
+        if joinable == 0 and joined_cells <= 1:
+            joinable = -3
+        r = r_position + joined_cells + empty / 3 + max(joinable)
+
+        return r
+
 
 if __name__ == "__main__":
     episodes = 100000
     agent = DQNAgent()
-    stuck_each_epoch = []
+    # store all mean_score_cepochs
     s = []
-    score = []
+    # average score of c epochs
+    mean_score_cepochs = []
     Q_value = []
     for i in range(episodes):
         g = Game()
         g.fill_cell()
-        state = g.board
+        state = agent.scale(g.board).reshape(agent.state_size)
         stuck_counter = 0
         stuck = 0
-        r = []
+        total_r = []
 
         while True:
+            # select action based on the current state
             action = agent.act(state)
+            # initialize reward
             reward = 0
-
-            if g.moved:
-                stuck_counter = 0
+            # take action
             g.main_loop(action)
 
+            # if not moved, select the largest available q as action
             if not g.moved:
-                lst = agent.model.predict(agent.scale(state).reshape(agent.state_size))[0]
+                # store all q values and make a dictionary {qvalue: action_index}
+                lst = agent.model.predict(state)[0]
                 dict = {}
                 for index, value in enumerate(lst):
                     dict[value] = index
-
+                # reverse sort keys(q_values)
+                # iterate through keys and get
                 for key in reversed(sorted(dict.keys())):
                     g.main_loop(dict[key])
                     if g.moved:
                         break
-
+            # gather information to calculate reward
             next_state = g.board
             max_position = np.argmax(next_state)
-
-            result = np.where(g.board == np.max(next_state))
-            listOfCoordinates = np.array(list(zip(result[0], result[1])))
-            temp = np.array([list(i) in [[0,0],[0,3],[3,0],[3,3]] for i in listOfCoordinates])
-            if temp.any():
-                r_position = 10
-            else:
-                r_position = 0
-
-
-            # if max_position == np.array([0,3,12,15]).any():
-            #     r_position = 10
-            # else:
-            #     r_position = 0
             empty = g.empty
             joinable = g.joinable
             joined_cells = g.joined_cells
-
-            if joined_cells == 0:
-                joined_cells = -1
-            if empty == 0:
-                empty = -5
-            if joined_cells == 0:
-                joined_cells = -2
-            if joinable == 0 and joined_cells <= 1:
-                joinable = -3
-
-            reward = r_position + joined_cells + empty/3 + max(joinable)
-
+            # calculate reward
+            reward = agent.calculate_reward(next_state,joined_cells,empty,joinable)
             game_over = g.game_over
-            r.append(reward)
-            state = agent.scale(state).reshape(agent.state_size)
+            # record reward
+            total_r.append(reward)
+            # preprocess next_state
             next_state = agent.scale(next_state).reshape(agent.state_size)
+            # store everything to memory
             agent.store_memory(state, action, reward, next_state, game_over)
+
             state = next_state
-            Q = np.array([value * (0.99 ** index) for index, value in enumerate(r)]).sum()
+            Q = np.array([value * (0.99 ** index) for index, value in enumerate(total_r)]).sum()
             if game_over:
                 print("episode: {}/{}, score: {}, max_cell: {}, Q: {}"
                       .format(i, episodes, g.score, np.max(g.board), Q))
@@ -185,36 +191,12 @@ if __name__ == "__main__":
                 break
 
         Q_value.append(Q)
-        stuck_each_epoch.append(stuck)
-        score.append(g.score)
+        # store average score of agent.c epochs
+        mean_score_cepochs.append(g.score)
         agent.experience_replay(128)
 
         if i%agent.c == agent.c-1:
-            # agent.target.set_weights(agent.model.get_weights())
             agent.target = keras.models.clone_model(agent.model)
-            s.append(np.array(score).mean())
+            s.append(np.array(mean_score_cepochs).mean())
             print(np.array(s))
-
-            # game = []
-            # for j in range(50):
-            #     print(j)
-            #     g = Game()
-            #     g.fill_cell()
-            #     state = g.board
-            #     while not g.game_over:
-            #         act = agent.act(state)
-            #         g.main_loop(act)
-            #
-            #         if not g.moved:
-            #             for index,value in enumerate(sorted(
-            #                     agent.model.predict(agent.scale(state).reshape(agent.state_size))[0])):
-            #                 g.main_loop(index)
-            #                 if g.moved:
-            #                     break
-            #         state = g.board
-            #     game.append(g.score)
-            #
-            # print(np.array(game).mean())
-            # score = []
-
 
