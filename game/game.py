@@ -13,6 +13,7 @@ class Game:
         self.joinable = []
         self.moved = False
         self.joined_cells = 0
+        self.gained_score = 0
 
     def fill_cell(self):
         i, j = (self.board == 0).nonzero()
@@ -78,6 +79,8 @@ class Game:
             self.fill_cell()
             self.count()
             self.score += score
+            self.gained_score = score
+
         if 0 not in self.board:
             self.is_game_over()
         return self.board, self.score
