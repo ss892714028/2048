@@ -85,7 +85,6 @@ class DQNAgent:
         except:
             mini_batch = random.sample(self.memory, 32)
         loss = []
-        accuracy = []
         for state, action, reward, next_state, game_over in mini_batch:
             target = reward
             self.action = action
@@ -99,7 +98,6 @@ class DQNAgent:
 
             hist = self.model.fit(state, y, epochs=1, verbose=0)
             loss.append(hist.history['loss'])
-            accuracy.append(hist.history['acc'])
 
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
