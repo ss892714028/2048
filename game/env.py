@@ -108,9 +108,9 @@ class GameEnv(gym.Env):
     def calculate_reward(self):
         if self.moved:
 
-            return self.gained_score/self.board.mean()
+            return self.gained_score * 10/self.board.mean() + np.max(self.joinable) + self.empty
         else:
-            return -1000
+            return -5
 
     def reset(self):
         self.board = np.zeros((4, 4), dtype=np.int)

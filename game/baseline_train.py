@@ -9,9 +9,9 @@ import numpy as np
 
 def modified_cnn(scaled_images, **kwargs):
     activ = tf.nn.relu
-    layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=2, stride=1,  **kwargs))
-    layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=2, stride=1,  **kwargs))
-    layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=1, stride=1,  **kwargs))
+    layer_1 = activ(conv(scaled_images, 'c1', n_filters=64, filter_size=2, stride=1,  **kwargs))
+    layer_2 = activ(conv(layer_1, 'c2', n_filters=128, filter_size=2, stride=1,  **kwargs))
+    layer_3 = activ(conv(layer_2, 'c3', n_filters=256, filter_size=2, stride=1,  **kwargs))
     layer_3 = conv_to_fc(layer_3)
     return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
 
@@ -24,4 +24,5 @@ class CustomPolicy(FeedForwardPolicy):
 
 
 env = GameEnv()
-model = DQN(CustomPolicy, env,verbose=1).learn(total_timesteps=int(1e6))
+model = DQN(CustomPolicy, env,verbose=1).learn(total_timesteps=int(6e7))
+model.save('model')
