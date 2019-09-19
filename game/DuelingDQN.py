@@ -40,8 +40,9 @@ class DQNAgent:
         fc2 = Dense(512)(flatten)
         x = Dense(self.action_space + 1, activation='linear')(fc2)
 
-        x = Lambda(lambda i: K.expand_dims(i[:,0],-1) + i[:,1:] - K.mean(i[:,1:], keepdims=True), output_shape=(self.action_space,))(x)
-        # policy = Dense(NUM_ACTIONS)(merge_layer)
+        x = Lambda(lambda i: K.expand_dims(i[:, 0], -1) +
+                             i[:, 1:] - K.mean(i[:, 1:], keepdims=True),
+                   output_shape=(self.action_space,))(x)
 
         model = keras.Model(input=[input_layer], output=[x])
         model.compile(loss=self.loss, optimizer=Adam(lr=0.001),metrics=['accuracy'])
